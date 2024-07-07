@@ -1,0 +1,8 @@
+streamlit
+langchain
+langchain-community
+llama-cpp-python
+sentence-transformers
+pypdf
+faiss-cpu
+duckduckgo-search
