@@ -23,6 +23,7 @@ embeddings = HuggingFaceEmbeddings(model_name="intfloat/multilingual-e5-base")
 # モデルの準備
 llm = LlamaCpp(
     model_path=MODEL_NAME,
+    max_tokens=2048
 )
 
 st.title("Local AI Assistant")
@@ -34,6 +35,8 @@ uploaded_file = st.sidebar.file_uploader("PDFファイルをアップロード",
 chunk_size = st.sidebar.slider("chunk size", 128, 1024, 256)
 chunk_overlap = st.sidebar.slider("chunk overlap", 0, 120, 40)
 isagent = st.sidebar.toggle("Use Web Search")
+user_prompt = st.sidebar.text_input("User Prompt", value="")
+
 
 # アップロードされたPDFからretrieverを生成する処理を関数にまとめる
 def process_uploaded_file(uploaded_file):
@@ -74,6 +77,12 @@ for message in st.session_state.messages: # メッセージの数だけ繰り返
 
 # ユーザーからの新しい入力を取得
 if prompt := st.chat_input("質問を入力してください"):
+    inputtollm = ChatPromptTemplate.from_messages(
+        [
+            ("system", "You are an assistant for question-answering tasks.\n\n" + user_prompt ),
+            ("human", "{input}"),
+        ]
+    )
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -112,7 +121,7 @@ if prompt := st.chat_input("質問を入力してください"):
         agent = initialize_agent(tools, llm, agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION, verbose=True)
 
     else:
-        chain = simplechain
+        chain = inputtollm | simplechain
 
     with st.chat_message("assistant"):
         message_placeholder = st.empty() # 一時的なプレースホルダーを作成
@@ -128,7 +137,7 @@ if prompt := st.chat_input("質問を入力してください"):
         elif isagent:
             full_response = agent.run(prompt)
         elif uploaded_file is None and not isagent:
-            for response in chain.stream(prompt):
+            for response in chain.stream({"input":prompt}):
                 full_response += response
                 message_placeholder.markdown(full_response + "▌")
 
